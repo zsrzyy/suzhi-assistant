@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>徐海·素质测评填表助手</title>
+  <link rel="icon" href="/xuhai-logo.png" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div id="app" class="app">
+    <!-- 顶部栏 -->
+    <header class="topbar">
+      <div class="topbar-brand">
+        <img class="topbar-logo" src="/xuhai-logo.png" alt="logo" />
+        <span class="topbar-title">素质测评填表助手</span>
+      </div>
+      <div class="topbar-actions">
+        <div class="total-badge" title="发展素质得分 = 德育×25% + 智育×60% + 体育×5% + 美育×5% + 劳育×5%">
+          <span class="total-label">加分总分</span>
+          <b id="topTotal">0.00</b>
+          <span class="total-star">☆</span>
+        </div>
+        <button class="btn-top" id="btnRules">
+          <svg viewBox="0 0 24 24" width="14" height="14"><path d="M4 19V5a2 2 0 012-2h13v16H6a2 2 0 00-2 2zm0 0a2 2 0 012-2h13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          加分规则
+        </button>
+        <button class="btn-top" id="btnPrint">
+          <svg viewBox="0 0 24 24" width="14" height="14"><path d="M7 8V3h10v5M7 17H4a1 1 0 01-1-1v-6a1 1 0 011-1h16a1 1 0 011 1v6a1 1 0 01-1 1h-3M7 14h10v7H7z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+          打印
+        </button>
+        <button class="btn-top primary" id="btnWord">
+          <svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 3v11m0 0l-4.5-4.5M12 14l4.5-4.5M4 21h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          导出 Word
+        </button>
+        <button class="btn-top danger" id="btnClear">
+          <svg viewBox="0 0 24 24" width="14" height="14"><path d="M4 7h16M9 7V4h6v3m-9 0l1 14h10l1-14M10 11v6m4-6v6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          清空
+        </button>
+      </div>
+    </header>
+
+    <!-- 主区域 -->
+    <main class="main">
+      <div class="main-body">
+        <!-- 对话区（40%） -->
+        <section class="chat" id="chatPane">
+          <!-- 欢迎页（无消息时） -->
+          <div class="welcome" id="welcome">
+            <div class="welcome-brand">
+              <div class="welcome-school">中国矿业大学徐海学院</div>
+              <img class="welcome-logo" src="/xuhai-logo.png" alt="logo" />
+              <h1 class="welcome-title">徐海·素质测评填表助手</h1>
+              <p class="welcome-sub">上传奖状、证书，自动识别、判分并填入申报表</p>
+            </div>
+
+            <div class="suggest-grid">
+              <button class="suggest-card" data-action="upload">
+                <div class="suggest-top">
+                  <span class="suggest-ic" style="background:#fbe7e3;color:#b54a3f">📷</span>
+                  <span class="suggest-tag">快速上手</span>
+                </div>
+                <div class="suggest-text">上传奖状 / 证书 / 排名截图</div>
+                <div class="suggest-arrow">↗</div>
+              </button>
+              <button class="suggest-card" data-action="sample">
+                <div class="suggest-top">
+                  <span class="suggest-ic" style="background:#faeade;color:#b07d2e">🏆</span>
+                  <span class="suggest-tag">判分示例</span>
+                </div>
+                <div class="suggest-text">蓝桥杯江苏省赛二等奖加几分？</div>
+                <div class="suggest-arrow">↗</div>
+              </button>
+              <button class="suggest-card" data-action="rules">
+                <div class="suggest-top">
+                  <span class="suggest-ic" style="background:#f6efdd;color:#9a7b3f">📐</span>
+                  <span class="suggest-tag">规则查询</span>
+                </div>
+                <div class="suggest-text">查看加分规则与竞赛分级表</div>
+                <div class="suggest-arrow">↗</div>
+              </button>
+              <button class="suggest-card" data-action="handbook">
+                <div class="suggest-top">
+                  <span class="suggest-ic" style="background:#efe5dd;color:#8a6a54">📚</span>
+                  <span class="suggest-tag">手册问答</span>
+                </div>
+                <div class="suggest-text">问学生手册：奖学金评定条件？</div>
+                <div class="suggest-arrow">↗</div>
+              </button>
+            </div>
+          </div>
+
+          <!-- 消息列表 -->
+          <div class="messages" id="messages"></div>
+
+          <!-- 输入框 -->
+          <div class="composer">
+            <div class="composer-box">
+              <div class="composer-toolbar">
+                <button class="tool-chip" id="btnPickImage">
+                  <svg viewBox="0 0 24 24" width="15" height="15"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8.5" cy="9.5" r="1.5" fill="currentColor"/><path d="M21 16l-5-5-9 9" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+                  选择图片
+                </button>
+                <button class="tool-chip" id="btnMode" data-mode="chat">
+                  <svg viewBox="0 0 24 24" width="15" height="15"><path d="M4 5h16v12H8l-4 3z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                  <span id="modeLabel">填表模式</span>
+                </button>
+              </div>
+              <textarea id="input" rows="1" placeholder="上传奖状/证书照片，或输入修改指令，例如：把第三条改到美育"></textarea>
+              <div class="composer-actions">
+                <span class="composer-hint">识别图片消耗 DeepSeek 额度 · 同一证书仅可提交一次</span>
+                <button class="send-btn" id="btnSend" title="发送">
+                  <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 申报表区（60%） -->
+        <section class="form-pane" id="formPane">
+          <div class="form-scroll" id="formScroll"></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- 加分规则弹窗 -->
+  <div class="modal-mask" id="rulesModal">
+    <div class="modal">
+      <div class="modal-head">
+        <div class="modal-title">加分规则（2026 学生版）</div>
+        <button class="modal-close" id="rulesClose">✕</button>
+      </div>
+      <div class="modal-body" id="rulesBody"></div>
+    </div>
+  </div>
+
+  <!-- 清空确认弹窗 -->
+  <div class="modal-mask" id="confirmModal">
+    <div class="modal modal-sm">
+      <div class="modal-head">
+        <div class="modal-title">确认清空</div>
+        <button class="modal-close" id="confirmClose">✕</button>
+      </div>
+      <div class="modal-body">
+        确定要清空所有数据吗？表格内容、对话记录和「同一张奖状仅可使用一次」的重复提交记录都会被删除，此操作不可撤销。
+      </div>
+      <div class="confirm-actions">
+        <button class="btn-top" id="confirmCancel">取消</button>
+        <button class="btn-top primary" id="confirmOk">确认清空</button>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="fileInput" accept="image/*" multiple hidden />
+  <script src="/app.js"></script>
+</body>
+</html>
