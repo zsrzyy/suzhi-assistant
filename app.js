@@ -1197,83 +1197,11 @@ async function handleFiles(files) {
   }
 }
 
-/* ---------------- 基本信息自动识别（班级 / 姓名） ---------------- */
-
-// 姓名只填"学生姓名"栏；班级只填"班级"栏，互不串位。
-const NAME_RE = /(?:我的?名字(?:是|叫)?|学生姓名[：:是]?|姓名[：:是]?|我?叫|我是)\s*([\u4e00-\u9fa5]{2,4})/;
-// 明显不是人名的词：职务/称谓/疑问词，避免"我是班级生活委员"被当成姓名
-const NAME_BAD_RE = /班级|委员|书记|干事|部长|主席|老师|同学|代表|组长|生活|学习|组织|宣传|体育|文艺|^[是谁什么怎么哪那]/;
-// 班级：依次尝试 关键词式 / 年级式 / 连字符式
-const CLASS_RES = [
-  /(?:我的?班级|所在班级|班级)[：:是]?\s*([\u4e00-\u9fa5A-Za-z0-9\-·]{2,20}?班)/,
-  /(20\d{2}\s*级[\u4e00-\u9fa5A-Za-z0-9\-]{1,20}?班)/,
-  /([\u4e00-\u9fa5]{2,10}\d{2,4}-\d{1,3}班)/,
-];
-
-/**
- * 从用户输入文本中识别姓名和班级信息，自动填入申报表顶部对应栏位。
- * 纯本地正则实现，两种模式（填表/手册问答）都会调用。
- * 填表日期始终使用当天日期（可在表格中手动改）。
- */
-function autoFillBasicInfo(text) {
-  if (!text) return { changed: false, applied: [] };
-
-  let changed = false;
-  const applied = [];
-
-  // 1) 先识别班级 → 只写 form.className（先班级后姓名，避免"我是XX24-3班"被当成姓名）
-  let className = '';
-  let classMatch = null;
-  for (const re of CLASS_RES) {
-    const m = text.match(re);
-    if (m) { classMatch = m; break; }
-  }
-  if (classMatch) {
-    // 清理捕获结果中混入的引导词（我是/我叫/姓名：等），只留班级本身
-    className = classMatch[1]
-      .replace(/\s+/g, '')
-      .replace(/^(?:我的?班级[：:是]?|学生姓名[：:是]?|姓名[：:是]?|我的?名字(?:是|叫)?|我?叫|我是)/, '');
-    if (className && /班$/.test(className)) {
-      form.className = className;
-      changed = true;
-      applied.push(`班级「${className}」`);
-    } else {
-      classMatch = null; // 清理后无效，作废本次匹配
-      className = '';
-    }
-  }
-
-  // 2) 再识别姓名 → 只写 form.studentName（与班级匹配重叠时不填，防误填）
-  const nm = text.match(NAME_RE);
-  if (nm && !NAME_BAD_RE.test(nm[1])) {
-    const overlap = classMatch && nm.index !== undefined && classMatch.index !== undefined &&
-      nm.index >= classMatch.index && nm.index < classMatch.index + classMatch[0].length;
-    const looksLikeClass = className && className.includes(nm[1]);
-    if (!overlap && !looksLikeClass) {
-      form.studentName = nm[1];
-      changed = true;
-      applied.push(`学生姓名「${nm[1]}」`);
-    }
-  }
-
-  if (changed) {
-    form.fillDate = todayStr();
-    saveForm();
-    renderForm();
-    updateStats();
-  }
-
-  return { changed, applied };
-}
-
 /* ---------------- 文字指令 ---------------- */
 
 async function handleSendText() {
   const text = els.input.value.trim();
   if (!text || processing) return;
-
-  // 无论哪种模式，先尝试识别姓名/班级并填入表格
-  const auto = autoFillBasicInfo(text);
 
   // 手册问答模式
   if (mode === 'handbook') {
@@ -1285,11 +1213,7 @@ async function handleSendText() {
     setSendDisabled(true);
     try {
       const answer = await askHandbook(text, null);
-      let content = answer.content;
-      if (auto.changed && auto.applied.length) {
-        content = `✅ 已自动填入：${auto.applied.join('、')}\n\n${content}`;
-      }
-      updateMessage(assistantMsgId, { content, handbookAnswer: { content: answer.content, citations: answer.citations } });
+      updateMessage(assistantMsgId, { content: answer.content, handbookAnswer: { content: answer.content, citations: answer.citations } });
     } catch (e) {
       updateMessage(assistantMsgId, { content: '学生手册问答助手暂时不可用，请稍后再试。' });
     } finally {
@@ -1303,21 +1227,6 @@ async function handleSendText() {
   addMessage({ id: genId('msg'), role: 'user', type: 'text', content: text, timestamp: Date.now() });
   els.input.value = '';
   const assistantMsgId = genId('msg');
-
-  // 若是自我介绍类输入（提到姓名/班级），直接处理基本信息，不走表格指令解析
-  const hasOpIntent = /第[一二三四五六七八九十\d]+[条项]|删|加|改|移到|换|填|几分|加分/.test(text);
-  const isIntro = /我的?名字|我?叫|姓名|我是|我的?班级|班级/.test(text);
-  if (isIntro && !hasOpIntent) {
-    let tips;
-    if (auto.changed && auto.applied.length) {
-      tips = `✅ 已自动填入：${auto.applied.join('、')}（填表日期已设为 ${form.fillDate}）`;
-    } else {
-      tips = '我识别到你在介绍基本信息，但没解析出有效的格式。\n\n姓名支持："我叫XX""姓名：XX""我的名字是XX"\n班级支持："我的班级是XX班""2024级XX班""机电2024-1班"\n\n也可以直接在右栏表格顶部手动填写。';
-    }
-    addMessage({ id: assistantMsgId, role: 'assistant', type: 'text', content: tips, timestamp: Date.now() });
-    return;
-  }
-
   addMessage({ id: assistantMsgId, role: 'assistant', type: 'text', content: '正在理解指令...', timestamp: Date.now() });
   processing = true;
   setSendDisabled(true);
@@ -1424,14 +1333,8 @@ async function handleSendText() {
     }
 
     if (appliedCount > 0) {
-      let msg = `✅ 已完成 ${appliedCount} 处修改，右侧申报表已更新。`;
-      if (auto.changed && auto.applied.length) {
-        msg += `\n同时已填入：${auto.applied.join('、')}。`;
-      }
-      updateMessage(assistantMsgId, { content: msg });
+      updateMessage(assistantMsgId, { content: `✅ 已完成 ${appliedCount} 处修改，右侧申报表已更新。` });
       toast('申报表已更新');
-    } else if (auto.changed) {
-      updateMessage(assistantMsgId, { content: `✅ 已自动填入：${auto.applied.join('、')}（填表日期 ${form.fillDate}）。` });
     } else {
       updateMessage(assistantMsgId, { content: '未能找到要操作的表格条目。你可以在右栏直接点击单元格编辑。' });
     }
