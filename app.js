@@ -1221,24 +1221,39 @@ function autoFillBasicInfo(text) {
   let changed = false;
   const applied = [];
 
-  // 1) 姓名 → 只写 form.studentName
-  const nm = text.match(NAME_RE);
-  if (nm && !NAME_BAD_RE.test(nm[1])) {
-    form.studentName = nm[1];
-    changed = true;
-    applied.push(`学生姓名「${nm[1]}」`);
-  }
-
-  // 2) 班级 → 只写 form.className
+  // 1) 先识别班级 → 只写 form.className（先班级后姓名，避免"我是XX24-3班"被当成姓名）
   let className = '';
+  let classMatch = null;
   for (const re of CLASS_RES) {
     const m = text.match(re);
-    if (m) { className = m[1].replace(/\s+/g, ''); break; }
+    if (m) { classMatch = m; break; }
   }
-  if (className) {
-    form.className = className;
-    changed = true;
-    applied.push(`班级「${className}」`);
+  if (classMatch) {
+    // 清理捕获结果中混入的引导词（我是/我叫/姓名：等），只留班级本身
+    className = classMatch[1]
+      .replace(/\s+/g, '')
+      .replace(/^(?:我的?班级[：:是]?|学生姓名[：:是]?|姓名[：:是]?|我的?名字(?:是|叫)?|我?叫|我是)/, '');
+    if (className && /班$/.test(className)) {
+      form.className = className;
+      changed = true;
+      applied.push(`班级「${className}」`);
+    } else {
+      classMatch = null; // 清理后无效，作废本次匹配
+      className = '';
+    }
+  }
+
+  // 2) 再识别姓名 → 只写 form.studentName（与班级匹配重叠时不填，防误填）
+  const nm = text.match(NAME_RE);
+  if (nm && !NAME_BAD_RE.test(nm[1])) {
+    const overlap = classMatch && nm.index !== undefined && classMatch.index !== undefined &&
+      nm.index >= classMatch.index && nm.index < classMatch.index + classMatch[0].length;
+    const looksLikeClass = className && className.includes(nm[1]);
+    if (!overlap && !looksLikeClass) {
+      form.studentName = nm[1];
+      changed = true;
+      applied.push(`学生姓名「${nm[1]}」`);
+    }
   }
 
   if (changed) {
